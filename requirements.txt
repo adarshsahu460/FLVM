@@ -1,0 +1,10 @@
+torch
+transformers
+flwr
+flask
+nibabel
+numpy
+Pillow
+torchvision
+h5py
+watchdog

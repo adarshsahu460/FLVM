@@ -1,10 +1,6 @@
 # Virtual environment
 venv/
 
-# Data directories
-Combined_Dataset/
-preprocessed_data/
-
 # Model files
 model.h5
 *.h5

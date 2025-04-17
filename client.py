@@ -1,13 +1,14 @@
-import flwr as fl
+import h5py
 import torch
 import torch.optim as optim
 from torch.nn import CrossEntropyLoss
 from transformers import ViTModel
-import sys
 import logging
+import sys
+import requests
 from utils import load_dataset
+import numpy as np
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -28,47 +29,49 @@ class ViTForAlzheimers(torch.nn.Module):
         logits = self.classifier(pooled_output)
         return logits
 
-class AlzheimersClient(fl.client.NumPyClient):
-    def __init__(self, model, train_loader, test_loader, cid):
+class AlzheimersClient:
+    def __init__(self, model, train_loader, cid, server_url="http://localhost:8080"):
         self.model = model
         self.train_loader = train_loader
-        self.test_loader = test_loader
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=0.7)
         self.criterion = CrossEntropyLoss()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.cid = cid
-
-    def get_parameters(self, config):
-        logger.info(f"Client {self.cid}: Getting parameters")
-        return [val.cpu().numpy() for _, val in self.model.state_dict().items()]
+        self.server_url = server_url
     
-    def set_parameters(self, parameters):
-        logger.info(f"Client {self.cid}: Setting parameters")
-        params_dict = zip(self.model.state_dict().keys(), parameters)
-        state_dict = {k: torch.tensor(v) for k, v in params_dict}
-        self.model.load_state_dict(state_dict, strict=True)
-    
-    def fit(self, parameters, config):
-        server_round = config.get("server_round", 1)  # Get round number from server config
-        num_epochs = min(config.get("num_epochs", 2), 10)  # Cap at 10 epochs
-        dataset_path = self.train_loader.dataset.data_dir  # Get dataset path
-        logger.info(f"Client {self.cid}: Starting training for round {server_round} on dataset {dataset_path}")
+    def load_global_model(self):
+        logger.info(f"Client {self.cid}: Downloading global model")
+        try:
+            response = requests.get(f"{self.server_url}/get-global-model")
+            response.raise_for_status()
+            # Write the downloaded HDF5 file to disk
+            with open("temp_global_model.h5", 'wb') as f:
+                f.write(response.content)
+            # Read the HDF5 file to load model weights
+            with h5py.File("temp_global_model.h5", 'r') as f:
+                state_dict = {key: torch.tensor(np.array(f[key])) for key in f.keys()}
+                self.model.load_state_dict(state_dict, strict=True)
+            logger.info(f"Client {self.cid}: Loaded global model")
+        except Exception as e:
+            logger.error(f"Client {self.cid}: Error loading global model: {e}")
+            raise
 
-        self.set_parameters(parameters)
+    def train(self):
+        logger.info(f"Client {self.cid}: Starting training")
         self.model.train()
         
-        total_batches_processed = 0  # Track total batches across epochs
-        max_batches = 100  # Maximum batches to process
-        max_epochs = 10  # Maximum epochs to run
+        total_batches_processed = 0
+        max_batches = 100
+        num_epochs = 2
         
         for epoch in range(num_epochs):
             if total_batches_processed >= max_batches:
-                logger.info(f"Client {self.cid}: Reached maximum of {max_batches} batches, stopping training")
+                logger.info(f"Client {self.cid}: Reached maximum of {max_batches} batches")
                 break
                 
-            logger.info(f"Client {self.cid}: Round {server_round}, Epoch {epoch + 1}/{num_epochs}")
+            logger.info(f"Client {self.cid}: Epoch {epoch + 1}/{num_epochs}")
             batch_count = 0
             for batch_idx, (images, labels) in enumerate(self.train_loader):
                 if total_batches_processed >= max_batches:
@@ -76,8 +79,8 @@ class AlzheimersClient(fl.client.NumPyClient):
                     break
                     
                 batch_count += 1
+                logger.info(f"Running batch: {batch_count}")
                 total_batches_processed += 1
-                logger.info(f"Client {self.cid}: Processing batch {batch_idx + 1} in epoch {epoch + 1}")
                 images, labels = images.to(self.device), labels.to(self.device)
                 self.optimizer.zero_grad()
                 outputs = self.model(images)
@@ -89,26 +92,36 @@ class AlzheimersClient(fl.client.NumPyClient):
             self.scheduler.step()
             logger.info(f"Client {self.cid}: Completed epoch {epoch + 1} with {batch_count} batches")
         
-        logger.info(f"Client {self.cid}: Finished training for round {server_round} with {total_batches_processed} total batches")
-        logger.info(f"Client {self.cid}: Sending updated weights to server")
-        return self.get_parameters(config), len(self.train_loader.dataset), {}
-        
-    def evaluate(self, parameters, config):
-        logger.info(f"Client {self.cid}: Evaluate called (unused)")
-        return float(0), 0, {"accuracy": 0.0}
+        logger.info(f"Client {self.cid}: Finished training with {total_batches_processed} total batches")
+    
+    def save_and_send_weights(self):
+        logger.info(f"Client {self.cid}: Saving and sending weights")
+        weight_path = f"client_{self.cid}_weights.h5"
+        try:
+            with h5py.File(weight_path, 'w') as f:
+                for key, param in self.model.state_dict().items():
+                    f.create_dataset(key, data=param.cpu().numpy())
+            
+            with open(weight_path, 'rb') as f:
+                response = requests.post(
+                    f"{self.server_url}/upload-weights/{self.cid}",
+                    files={"file": (weight_path, f, "application/x-hdf5")}
+                )
+                response.raise_for_status()
+            logger.info(f"Client {self.cid}: Weights sent to server")
+        except Exception as e:
+            logger.error(f"Client {self.cid}: Error sending weights: {e}")
+            raise
 
 def start_client(cid):
     logger.info(f"Starting client {cid}")
     try:
         model = ViTForAlzheimers()
         train_loader = load_dataset(f"/home/adarsh/Projects/FLVM_MP_PyTorch/preprocessed_data/client_{cid}")
-        test_loader = load_dataset("/home/adarsh/Projects/FLVM_MP_PyTorch/preprocessed_data/test", shuffle=False)
-        client = AlzheimersClient(model, train_loader, test_loader, cid)
-        logger.info(f"Client {cid}: Connecting to server at localhost:8080")
-        fl.client.start_numpy_client(
-            server_address="localhost:8080",
-            client=client
-        )
+        client = AlzheimersClient(model, train_loader, cid)
+        client.load_global_model()
+        client.train()
+        client.save_and_send_weights()
     except Exception as e:
         logger.error(f"Client {cid}: Error: {e}")
         sys.exit(1)

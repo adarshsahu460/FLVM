@@ -2,54 +2,49 @@ import h5py
 import torch
 import torch.optim as optim
 from torch.nn import CrossEntropyLoss
-from transformers import ViTModel
+from torch.cuda.amp import autocast, GradScaler
 import logging
 import sys
 import requests
 from utils import load_dataset
+from models import ViTForAlzheimers
 import numpy as np
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-class ViTForAlzheimers(torch.nn.Module):
-    def __init__(self, num_labels=4):
-        super(ViTForAlzheimers, self).__init__()
-        self.vit = ViTModel.from_pretrained('google/vit-base-patch16-224-in21k')
-        self.classifier = torch.nn.Sequential(
-            torch.nn.Linear(self.vit.config.hidden_size, 256),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, num_labels)
-        )
-    
-    def forward(self, pixel_values):
-        outputs = self.vit(pixel_values=pixel_values)
-        pooled_output = outputs.last_hidden_state[:, 0]
-        logits = self.classifier(pooled_output)
-        return logits
-
 class AlzheimersClient:
-    def __init__(self, model, train_loader, cid, server_url="http://localhost:8080"):
+    def __init__(self, model, train_loader, cid, server_url, api_key):
         self.model = model
         self.train_loader = train_loader
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=float(os.getenv("LEARNING_RATE", 0.001)))
         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=0.7)
         self.criterion = CrossEntropyLoss()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.cid = cid
         self.server_url = server_url
+        self.api_key = api_key
+        self.scaler = GradScaler() if torch.cuda.is_available() else None
     
     def load_global_model(self):
+        """Download and load the global model, verifying version."""
         logger.info(f"Client {self.cid}: Downloading global model")
         try:
-            response = requests.get(f"{self.server_url}/get-global-model")
+            headers = {"X-API-Key": self.api_key}
+            response = requests.get(f"{self.server_url}/get-global-model", headers=headers)
             response.raise_for_status()
-            # Write the downloaded HDF5 file to disk
+            
+            expected_version = os.getenv("MODEL_VERSION", "1.0")
+            if response.headers.get("X-Model-Version") != expected_version:
+                raise ValueError(f"Model version mismatch: expected {expected_version}, got {response.headers.get('X-Model-Version')}")
+            
             with open("temp_global_model.h5", 'wb') as f:
                 f.write(response.content)
-            # Read the HDF5 file to load model weights
+            
             with h5py.File("temp_global_model.h5", 'r') as f:
                 state_dict = {key: torch.tensor(np.array(f[key])) for key in f.keys()}
                 self.model.load_state_dict(state_dict, strict=True)
@@ -57,36 +52,52 @@ class AlzheimersClient:
         except Exception as e:
             logger.error(f"Client {self.cid}: Error loading global model: {e}")
             raise
-
+    
+    def add_dp_noise(self, state_dict, noise_scale=0.1):
+        """Add Gaussian noise to weights for differential privacy."""
+        for key in state_dict:
+            noise = torch.normal(0, noise_scale, size=state_dict[key].size()).to(state_dict[key].device)
+            state_dict[key] += noise
+        return state_dict
+    
     def train(self):
+        """Train the model with mixed precision."""
         logger.info(f"Client {self.cid}: Starting training")
         self.model.train()
         
         total_batches_processed = 0
-        max_batches = 100
-        num_epochs = 2
+        max_batches = int(os.getenv("MAX_BATCHES", 100))
+        num_epochs = int(os.getenv("NUM_EPOCHS", 2))
         
         for epoch in range(num_epochs):
             if total_batches_processed >= max_batches:
                 logger.info(f"Client {self.cid}: Reached maximum of {max_batches} batches")
                 break
-                
+            
             logger.info(f"Client {self.cid}: Epoch {epoch + 1}/{num_epochs}")
             batch_count = 0
             for batch_idx, (images, labels) in enumerate(self.train_loader):
                 if total_batches_processed >= max_batches:
                     logger.info(f"Client {self.cid}: Reached maximum of {max_batches} batches in epoch {epoch + 1}")
                     break
-                    
+                
                 batch_count += 1
-                logger.info(f"Running batch: {batch_count}")
                 total_batches_processed += 1
                 images, labels = images.to(self.device), labels.to(self.device)
                 self.optimizer.zero_grad()
-                outputs = self.model(images)
-                loss = self.criterion(outputs, labels)
-                loss.backward()
-                self.optimizer.step()
+                
+                with autocast():
+                    outputs = self.model(images)
+                    loss = self.criterion(outputs, labels)
+                
+                if self.scaler:
+                    self.scaler.scale(loss).backward()
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+                else:
+                    loss.backward()
+                    self.optimizer.step()
+                
                 logger.debug(f"Client {self.cid}: Batch {batch_idx + 1} loss: {loss.item():.4f}")
             
             self.scheduler.step()
@@ -95,17 +106,22 @@ class AlzheimersClient:
         logger.info(f"Client {self.cid}: Finished training with {total_batches_processed} total batches")
     
     def save_and_send_weights(self):
+        """Save and send weights with dataset size."""
         logger.info(f"Client {self.cid}: Saving and sending weights")
         weight_path = f"client_{self.cid}_weights.h5"
         try:
+            state_dict = self.add_dp_noise(self.model.state_dict(), noise_scale=float(os.getenv("DP_NOISE_SCALE", 0.1)))
             with h5py.File(weight_path, 'w') as f:
-                for key, param in self.model.state_dict().items():
+                for key, param in state_dict.items():
                     f.create_dataset(key, data=param.cpu().numpy())
             
+            dataset_size = len(self.train_loader.dataset)
             with open(weight_path, 'rb') as f:
                 response = requests.post(
                     f"{self.server_url}/upload-weights/{self.cid}",
-                    files={"file": (weight_path, f, "application/x-hdf5")}
+                    files={"file": (weight_path, f, "application/x-hdf5")},
+                    data={"dataset_size": dataset_size},
+                    headers={"X-API-Key": self.api_key}
                 )
                 response.raise_for_status()
             logger.info(f"Client {self.cid}: Weights sent to server")
@@ -113,12 +129,13 @@ class AlzheimersClient:
             logger.error(f"Client {self.cid}: Error sending weights: {e}")
             raise
 
-def start_client(cid):
+def start_client(cid, data_dir, server_url, api_key):
+    """Start the client with given configuration."""
     logger.info(f"Starting client {cid}")
     try:
         model = ViTForAlzheimers()
-        train_loader = load_dataset(f"/home/adarsh/Projects/FLVM_MP_PyTorch/preprocessed_data/client_{cid}")
-        client = AlzheimersClient(model, train_loader, cid)
+        train_loader = load_dataset(data_dir)
+        client = AlzheimersClient(model, train_loader, cid, server_url, api_key)
         client.load_global_model()
         client.train()
         client.save_and_send_weights()
@@ -127,5 +144,16 @@ def start_client(cid):
         sys.exit(1)
 
 if __name__ == "__main__":
-    cid = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-    start_client(cid)
+    import argparse
+    parser = argparse.ArgumentParser(description="Federated Learning Client")
+    parser.add_argument("--cid", type=int, default=0, help="Client ID")
+    parser.add_argument("--data-dir", default=os.getenv("DATA_DIR", "preprocessed_data"), help="Dataset directory")
+    args = parser.parse_args()
+    
+    server_url = os.getenv("SERVER_URL", "http://localhost:8080")
+    api_key = os.getenv("API_KEY")
+    if not api_key:
+        logger.error("API_KEY not set in .env")
+        sys.exit(1)
+    
+    start_client(args.cid, os.path.join(args.data_dir, f"client_{args.cid}"), server_url, api_key)

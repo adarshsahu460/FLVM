@@ -8,3 +8,4 @@ flower
 python-multipart
 torchvision    
 pillow
+python-dotenv

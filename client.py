@@ -11,6 +11,7 @@ from models import ViTForAlzheimers
 import numpy as np
 from dotenv import load_dotenv
 import os
+import time
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -33,25 +34,26 @@ class AlzheimersClient:
     def load_global_model(self):
         """Download and load the global model, verifying version."""
         logger.info(f"Client {self.cid}: Downloading global model")
-        try:
-            headers = {"X-API-Key": self.api_key}
-            response = requests.get(f"{self.server_url}/get-global-model", headers=headers)
-            response.raise_for_status()
-            
-            expected_version = os.getenv("MODEL_VERSION", "1.0")
-            if response.headers.get("X-Model-Version") != expected_version:
-                raise ValueError(f"Model version mismatch: expected {expected_version}, got {response.headers.get('X-Model-Version')}")
-            
-            with open("temp_global_model.h5", 'wb') as f:
-                f.write(response.content)
-            
-            with h5py.File("temp_global_model.h5", 'r') as f:
-                state_dict = {key: torch.tensor(np.array(f[key])) for key in f.keys()}
-                self.model.load_state_dict(state_dict, strict=True)
-            logger.info(f"Client {self.cid}: Loaded global model")
-        except Exception as e:
-            logger.error(f"Client {self.cid}: Error loading global model: {e}")
-            raise
+        headers = {"X-API-Key": self.api_key}
+        retries = 5
+        for attempt in range(retries):
+            try:
+                response = requests.get(f"{self.server_url}/get-global-model", headers=headers)
+                response.raise_for_status()
+                expected_version = os.getenv("MODEL_VERSION", "1.0")
+                if response.headers.get("X-Model-Version") != expected_version:
+                    raise ValueError(f"Model version mismatch: expected {expected_version}, got {response.headers.get('X-Model-Version')}")
+                with open("temp_global_model.h5", 'wb') as f:
+                    f.write(response.content)
+                with h5py.File("temp_global_model.h5", 'r') as f:
+                    state_dict = {key: torch.tensor(np.array(f[key])) for key in f.keys()}
+                    self.model.load_state_dict(state_dict, strict=True)
+                logger.info(f"Client {self.cid}: Loaded global model")
+                return
+            except Exception as e:
+                logger.error(f"Client {self.cid}: Error loading global model (attempt {attempt+1}/{retries}): {e}")
+                time.sleep(1 + self.cid)  # Stagger by client id
+        raise RuntimeError(f"Client {self.cid}: Failed to load global model after {retries} attempts")
     
     def add_dp_noise(self, state_dict, noise_scale=0.1):
         """Add Gaussian noise to weights for differential privacy."""
@@ -129,12 +131,13 @@ class AlzheimersClient:
             logger.error(f"Client {self.cid}: Error sending weights: {e}")
             raise
 
-def start_client(cid, data_dir, server_url, api_key):
+def start_client(cid, data_dir, server_url, api_key, round_num=1):
     """Start the client with given configuration."""
-    logger.info(f"Starting client {cid}")
+    logger.info(f"Starting client {cid} for round {round_num}")
     try:
         model = ViTForAlzheimers()
-        train_loader = load_dataset(data_dir)
+        # Use data augmentation for training, set batch size to 8 for low memory
+        train_loader = load_dataset(data_dir, batch_size=8, augment=True, partition=round_num)
         client = AlzheimersClient(model, train_loader, cid, server_url, api_key)
         client.load_global_model()
         client.train()
@@ -148,6 +151,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Federated Learning Client")
     parser.add_argument("--cid", type=int, default=0, help="Client ID")
     parser.add_argument("--data-dir", default=os.getenv("DATA_DIR", "preprocessed_data"), help="Dataset directory")
+    parser.add_argument("--round", type=int, default=1, help="Federated round number (1-based)")
     args = parser.parse_args()
     
     server_url = os.getenv("SERVER_URL", "http://localhost:8080")
@@ -155,5 +159,7 @@ if __name__ == "__main__":
     if not api_key:
         logger.error("API_KEY not set in .env")
         sys.exit(1)
-    
-    start_client(args.cid, os.path.join(args.data_dir, f"client_{args.cid}"), server_url, api_key)
+    # Set DP_NOISE_SCALE to 0.0 for best accuracy unless privacy is required
+    if not os.getenv("DP_NOISE_SCALE"):
+        os.environ["DP_NOISE_SCALE"] = "0.0"
+    start_client(args.cid, os.path.join(args.data_dir, f"client_{args.cid}"), server_url, api_key, round_num=args.round)

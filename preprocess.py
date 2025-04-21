@@ -2,6 +2,7 @@ import os
 import shutil
 from PIL import Image
 import numpy as np
+import time
 
 def preprocess_dataset(input_dir, output_dir, num_clients=5):
     print(f"Input directory: {input_dir}")
@@ -74,6 +75,6 @@ def preprocess_dataset(input_dir, output_dir, num_clients=5):
             print(f"Moved {f} to {client_dir}")
 
 if __name__ == "__main__":
-    input_dir = "/home/adarsh/Projects/FLVM_MP/Combined_Dataset"
-    output_dir = "/home/adarsh/Projects/FLVM_MP/preprocessed_data"
+    input_dir = "D:\Projects\FLVM\Combined_Dataset"
+    output_dir = "D:\Projects\FLVM\preprocessed_data"
     preprocess_dataset(input_dir, output_dir)

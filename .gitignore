@@ -1,5 +1,6 @@
 # Virtual environment
 venv/
+preprocessed_data/
 
 # Model files
 model.h5
@@ -11,4 +12,4 @@ model.h5
 *.bin
 
 # Secrets
-.env
+# .env

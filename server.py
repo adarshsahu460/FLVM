@@ -1,7 +1,7 @@
 import h5py
 import torch
 import os
-from fastapi import FastAPI, HTTPException, UploadFile, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, Depends, Form
 from fastapi.responses import FileResponse
 from fastapi.security import APIKeyHeader
 from models import ViTForAlzheimers
@@ -9,9 +9,17 @@ from utils import load_dataset
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
+import numpy as np
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("server.log"),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
@@ -31,7 +39,12 @@ MODEL_VERSION = "1.0"  # Increment after each aggregation
 VALIDATION_DATA_DIR = os.getenv("VALIDATION_DATA_DIR", "validation_data")
 
 @app.post("/upload-weights/{client_id}")
-async def upload_weights(client_id: str, file: UploadFile, dataset_size: int, api_key: str = Depends(api_key_header)):
+async def upload_weights(
+    client_id: str,
+    file: UploadFile,
+    dataset_size: int = Form(...),
+    api_key: str = Depends(api_key_header)
+):
     """Receive client weights and dataset size."""
     if api_key not in VALID_API_KEYS:
         raise HTTPException(status_code=401, detail="Invalid API key")

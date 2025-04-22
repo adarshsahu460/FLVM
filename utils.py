@@ -12,7 +12,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 class AlzheimersDataset(Dataset):
-    """Dataset for Alzheimer's images with labels extracted from filenames, with optional partitioning."""
+    """Dataset for Alzheimer's images. Expects images in a flat directory (e.g., preprocessed_data/client_0 or preprocessed_data/test),
+    with labels encoded in filenames as _label_{label}.jpg (e.g., *_label_0.jpg for Non Demented).
+    """
     def __init__(self, data_dir, transform=None, partition=None, num_partitions=20):
         self.data_dir = data_dir
         self.transform = transform
@@ -73,9 +75,10 @@ def load_dataset(data_dir, batch_size=32, shuffle=True, num_workers=4, augment=F
                 transforms.RandomVerticalFlip(),
                 transforms.RandomRotation(10),
                 transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
-                transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+                transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2, hue=0.1),
                 transforms.RandomCrop(224, padding=8),
                 transforms.ToTensor(),
+                transforms.Lambda(lambda x: x + 0.05 * torch.randn_like(x)),  # Gaussian noise on tensor
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
         else:

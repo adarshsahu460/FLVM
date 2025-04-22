@@ -12,6 +12,7 @@ import numpy as np
 from dotenv import load_dotenv
 import os
 import time
+from tqdm import tqdm
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -21,7 +22,7 @@ class AlzheimersClient:
     def __init__(self, model, train_loader, cid, server_url, api_key):
         self.model = model
         self.train_loader = train_loader
-        self.optimizer = optim.Adam(self.model.parameters(), lr=float(os.getenv("LEARNING_RATE", 0.001)))
+        self.optimizer = optim.Adam(self.model.parameters(), lr=float(os.getenv("LEARNING_RATE", 0.0001)))
         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=0.7)
         self.criterion = CrossEntropyLoss()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -69,7 +70,7 @@ class AlzheimersClient:
         
         total_batches_processed = 0
         max_batches = int(os.getenv("MAX_BATCHES", 100))
-        num_epochs = int(os.getenv("NUM_EPOCHS", 2))
+        num_epochs = int(os.getenv("NUM_EPOCHS", 20))
         
         for epoch in range(num_epochs):
             if total_batches_processed >= max_batches:
@@ -78,7 +79,7 @@ class AlzheimersClient:
             
             logger.info(f"Client {self.cid}: Epoch {epoch + 1}/{num_epochs}")
             batch_count = 0
-            for batch_idx, (images, labels) in enumerate(self.train_loader):
+            for batch_idx, (images, labels) in enumerate(tqdm(self.train_loader, desc=f"Client {self.cid} Epoch {epoch+1}/{num_epochs}")):
                 if total_batches_processed >= max_batches:
                     logger.info(f"Client {self.cid}: Reached maximum of {max_batches} batches in epoch {epoch + 1}")
                     break
@@ -150,7 +151,8 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Federated Learning Client")
     parser.add_argument("--cid", type=int, default=0, help="Client ID")
-    parser.add_argument("--data-dir", default=os.getenv("DATA_DIR", "preprocessed_data"), help="Dataset directory")
+    # Default to preprocessed_data directory
+    parser.add_argument("--data-dir", default=os.getenv("DATA_DIR", "preprocessed_data"), help="Dataset directory (should be preprocessed_data)")
     parser.add_argument("--round", type=int, default=1, help="Federated round number (1-based)")
     args = parser.parse_args()
     
@@ -162,4 +164,5 @@ if __name__ == "__main__":
     # Set DP_NOISE_SCALE to 0.0 for best accuracy unless privacy is required
     if not os.getenv("DP_NOISE_SCALE"):
         os.environ["DP_NOISE_SCALE"] = "0.0"
+    # Each client should use preprocessed_data/client_{cid}
     start_client(args.cid, os.path.join(args.data_dir, f"client_{args.cid}"), server_url, api_key, round_num=args.round)

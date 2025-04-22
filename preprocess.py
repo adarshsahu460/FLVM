@@ -1,80 +1,51 @@
 import os
 import shutil
-from PIL import Image
-import numpy as np
-import time
+import random
+from glob import glob
+from tqdm import tqdm
 
-def preprocess_dataset(input_dir, output_dir, num_clients=5):
-    print(f"Input directory: {input_dir}")
-    print(f"Output directory: {output_dir}")
-    
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-        print(f"Created output directory: {output_dir}")
-    
-    # Define class labels
-    classes = ["No Impairment", "Very Mild Impairment", "Mild Impairment", "Moderate Impairment"]
-    label_map = {cls: idx for idx, cls in enumerate(classes)}
-    print(f"Class labels: {label_map}")
-    
-    # Process train and test sets
-    for split in ["train", "test"]:
-        split_input_dir = os.path.join(input_dir, split)
-        split_output_dir = os.path.join(output_dir, split)
-        os.makedirs(split_output_dir, exist_ok=True)
-        print(f"Processing split: {split}")
-        print(f"Input split dir: {split_input_dir}")
-        print(f"Output split dir: {split_output_dir}")
-        
-        all_images = []
-        for cls in classes:
-            cls_dir = os.path.join(split_input_dir, cls)
-            print(f"Checking class directory: {cls_dir}")
-            if not os.path.exists(cls_dir):
-                print(f"Directory does not exist: {cls_dir}")
-                continue
-            files = [f for f in os.listdir(cls_dir) if f.lower().endswith('.jpg')]
-            print(f"Found {len(files)} .jpg files in {cls_dir}")
-            for img_file in files:
-                all_images.append((cls, img_file))
-        
-        print(f"Total images found for {split}: {len(all_images)}")
-        if not all_images:
-            print(f"No images found in {split_input_dir}. Skipping.")
-            continue
-        
-        # Process and save images
-        for cls, img_file in all_images:
-            img_path = os.path.join(split_input_dir, cls, img_file)
-            print(f"Processing image: {img_path}")
-            try:
-                img = Image.open(img_path)
-                img = img.resize((224, 224))
-                label = label_map[cls]
-                output_path = os.path.join(split_output_dir, f"{split}_{cls.replace(' ', '_')}_{len(os.listdir(split_output_dir))}_label_{label}.jpg")
-                img.convert('RGB').save(output_path)
-                print(f"Saved to: {output_path}")
-            except Exception as e:
-                print(f"Error processing {img_path}: {e}")
-    
-    # Simulate federated clients for training data
-    train_dir = os.path.join(output_dir, "train")
-    train_files = [f for f in os.listdir(train_dir) if f.endswith('.jpg')]
-    print(f"Train files for splitting: {len(train_files)}")
-    if not train_files:
-        print("No train files to split into clients.")
-        return
-    
-    client_data = np.array_split(train_files, num_clients)
-    for cid, files in enumerate(client_data):
-        client_dir = os.path.join(output_dir, f"client_{cid}")
-        os.makedirs(client_dir, exist_ok=True)
-        print(f"Creating client_{cid} with {len(files)} files")
-        for f in files:
-            shutil.move(os.path.join(train_dir, f), os.path.join(client_dir, f))
-            print(f"Moved {f} to {client_dir}")
+# Define paths
+DATA_DIR = 'data'
+OUTPUT_DIR = 'preprocessed_data'
+CLIENTS = 5
+TEST_SPLIT = 0.2
 
-if __name__ == "__main__":
-    input_dir = "D:\Projects\FLVM\Combined_Dataset"
-    output_dir = "D:\Projects\FLVM\preprocessed_data"
-    preprocess_dataset(input_dir, output_dir)
+# Map class names to numeric labels
+CLASS_MAP = {
+    'Non Demented': 0,
+    'Very mild Dementia': 1,
+    'Mild Dementia': 2,
+    'Moderate Dementia': 3
+}
+
+# Create output directories
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+for i in range(CLIENTS):
+    os.makedirs(os.path.join(OUTPUT_DIR, f'client_{i}'), exist_ok=True)
+os.makedirs(os.path.join(OUTPUT_DIR, 'test'), exist_ok=True)
+
+# For each class, split images into clients and test set
+for class_name, label in CLASS_MAP.items():
+    class_dir = os.path.join(DATA_DIR, class_name)
+    images = glob(os.path.join(class_dir, '*.jpg'))
+    random.shuffle(images)
+    n_total = len(images)
+    n_test = int(TEST_SPLIT * n_total)
+    test_images = images[:n_test]
+    client_images = images[n_test:]
+    print(f"Class '{class_name}' (label {label}): {n_total} images -> {n_test} test, {len(client_images)} for clients.")
+    # Distribute to test set with progress bar
+    for img_path in tqdm(test_images, desc=f"Copying test images for '{class_name}'"):
+        base = os.path.basename(img_path)
+        new_name = f"{os.path.splitext(base)[0]}_label_{label}.jpg"
+        shutil.copy(img_path, os.path.join(OUTPUT_DIR, 'test', new_name))
+    # Distribute to clients with progress bar
+    for idx, img_path in enumerate(tqdm(client_images, desc=f"Copying client images for '{class_name}'")):
+        client_id = idx % CLIENTS
+        base = os.path.basename(img_path)
+        new_name = f"{os.path.splitext(base)[0]}_label_{label}.jpg"
+        shutil.copy(img_path, os.path.join(OUTPUT_DIR, f'client_{client_id}', new_name))
+        if (idx+1) % 100 == 0 or (idx+1) == len(client_images):
+            print(f"  Client {client_id}: {idx+1} / {len(client_images)} images distributed.")
+
+print('Preprocessing complete. Data split into clients and test set.')

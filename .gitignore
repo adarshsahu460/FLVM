@@ -1,15 +1,18 @@
-# Virtual environment
+# Folders
 venv/
 preprocessed_data/
+__pycache__/
+data/
 
-# Model files
-model.h5
+# Files
 *.h5
 
 # Other potential large files
 *.pt
 *.pth
 *.bin
+*.log 
 
 # Secrets
-.env
+# .env
+# kaggle.json

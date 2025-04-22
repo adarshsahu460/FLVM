@@ -8,6 +8,7 @@ import os
 from multiprocessing import Pool
 from functools import partial
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -49,7 +50,7 @@ def aggregate_weights():
     # Load weights in parallel
     logger.info(f"Found {len(weight_files)} client weights for aggregation")
     with Pool() as pool:
-        results = pool.map(partial(process_weights, weights_dir=WEIGHTS_DIR), weight_files)
+        results = list(tqdm(pool.imap(partial(process_weights, weights_dir=WEIGHTS_DIR), weight_files), total=len(weight_files), desc="Processing client weights"))
     # Aggregate weights
     aggregated_state_dict = OrderedDict()
     total_samples = 0
@@ -87,7 +88,7 @@ def aggregate_weights():
             continue
     # Normalize aggregated weights
     if total_samples > 0:
-        for key in aggregated_state_dict:
+        for key in tqdm(aggregated_state_dict, desc="Normalizing aggregated weights"):
             aggregated_state_dict[key] /= total_samples
     # Blend with previous global model weights (server-side momentum)
     if os.path.exists(GLOBAL_MODEL_PATH):

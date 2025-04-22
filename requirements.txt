@@ -10,3 +10,4 @@ python-multipart
 torchvision    
 pillow
 python-dotenv
+tqdm

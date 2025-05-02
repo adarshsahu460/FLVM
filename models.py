@@ -7,15 +7,15 @@ class ViTForAlzheimers(torch.nn.Module):
     def __init__(self, num_labels=4):
         super(ViTForAlzheimers, self).__init__()
         hf_token = os.getenv("HF_TOKEN")
-        self.vit = ViTModel.from_pretrained('facebook/deit-tiny-patch16-224', use_auth_token=hf_token)
-        # Freeze ViT backbone to reduce computation
+        self.vit = ViTModel.from_pretrained('google/vit-base-patch16-224', use_auth_token=hf_token)
+        # Initially freeze all parameters
         for param in self.vit.parameters():
             param.requires_grad = False
-        # Unfreeze the last 6 encoder blocks for fine-tuning
+        # Unfreeze all encoder layers (12 total) for fine-tuning
         if hasattr(self.vit, 'encoder') and hasattr(self.vit.encoder, 'layer'):
-            for param in self.vit.encoder.layer[-6:].parameters():
+            for param in self.vit.encoder.layer.parameters():
                 param.requires_grad = True
-        # Deepen the classifier head
+        # Classifier head
         self.classifier = torch.nn.Sequential(
             torch.nn.Linear(self.vit.config.hidden_size, 512),
             torch.nn.ReLU(),

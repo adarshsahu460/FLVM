@@ -35,7 +35,6 @@ def aggregate_weights():
     WEIGHTS_DIR = os.getenv("WEIGHTS_DIR", "client_weights")
     GLOBAL_MODEL_PATH = os.getenv("GLOBAL_MODEL_PATH", "global_model.h5")
     model = ViTForAlzheimers(num_labels=4)
-    # Get latest weights per client
     client_weights = {}
     for f in os.listdir(WEIGHTS_DIR):
         if f.endswith('.h5'):
@@ -47,11 +46,9 @@ def aggregate_weights():
     if not weight_files:
         logger.warning("No client weights found for aggregation")
         return
-    # Load weights in parallel
     logger.info(f"Found {len(weight_files)} client weights for aggregation")
     with Pool() as pool:
         results = list(tqdm(pool.imap(partial(process_weights, weights_dir=WEIGHTS_DIR), weight_files), total=len(weight_files), desc="Processing client weights"))
-    # Aggregate weights
     aggregated_state_dict = OrderedDict()
     total_samples = 0
     global_shapes = {k: v.shape for k, v in model.state_dict().items()}
@@ -59,7 +56,6 @@ def aggregate_weights():
     for weight_file, client_state_dict, dataset_size in results:
         if client_state_dict is None:
             continue
-        # Check for missing/unexpected keys
         client_keys = set(client_state_dict.keys())
         missing_keys = model_keys - client_keys
         unexpected_keys = client_keys - model_keys
@@ -68,7 +64,6 @@ def aggregate_weights():
         if unexpected_keys:
             logger.error(f"Unexpected keys in {weight_file}: {unexpected_keys}")
         try:
-            # Validate shapes
             for key in client_state_dict:
                 if key in global_shapes and client_state_dict[key].shape != global_shapes[key]:
                     logger.error(f"Invalid shape for {key} in {weight_file}")
@@ -86,11 +81,9 @@ def aggregate_weights():
         except Exception as e:
             logger.error(f"Error processing {weight_file}: {e}")
             continue
-    # Normalize aggregated weights
     if total_samples > 0:
         for key in tqdm(aggregated_state_dict, desc="Normalizing aggregated weights"):
             aggregated_state_dict[key] /= total_samples
-    # Blend with previous global model weights (server-side momentum)
     if os.path.exists(GLOBAL_MODEL_PATH):
         with h5py.File(GLOBAL_MODEL_PATH, 'r') as f:
             old_global_state = {key: torch.tensor(np.array(f[key])) for key in f.keys()}
@@ -100,9 +93,7 @@ def aggregate_weights():
                     SERVER_MOMENTUM * old_global_state[key] +
                     (1 - SERVER_MOMENTUM) * aggregated_state_dict[key]
                 )
-    # Update global model
     try:
-        # Log missing/unexpected keys on load
         load_result = model.load_state_dict(aggregated_state_dict, strict=False)
         if load_result.missing_keys:
             logger.error(f"Missing keys when loading aggregated state dict: {load_result.missing_keys}")

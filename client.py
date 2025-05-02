@@ -137,8 +137,8 @@ def start_client(cid, data_dir, server_url, api_key, round_num=1):
     logger.info(f"Starting client {cid} for round {round_num}")
     try:
         model = ViTForAlzheimers()
-        # Use data augmentation for training, set batch size to 8 for low memory
-        train_loader = load_dataset(data_dir, batch_size=8, augment=True, partition=round_num)
+        # Use entire dataset per round, batch size 8 for low memory
+        train_loader = load_dataset(data_dir, batch_size=8, augment=True, partition=None)
         client = AlzheimersClient(model, train_loader, cid, server_url, api_key)
         client.load_global_model()
         client.train()
@@ -151,8 +151,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Federated Learning Client")
     parser.add_argument("--cid", type=int, default=0, help="Client ID")
-    # Default to preprocessed_data directory
-    parser.add_argument("--data-dir", default=os.getenv("DATA_DIR", "preprocessed_data"), help="Dataset directory (should be preprocessed_data)")
+    parser.add_argument("--data-dir", default=os.getenv("DATA_DIR", "preprocessed_data"), help="Dataset directory")
     parser.add_argument("--round", type=int, default=1, help="Federated round number (1-based)")
     args = parser.parse_args()
     
@@ -161,8 +160,6 @@ if __name__ == "__main__":
     if not api_key:
         logger.error("API_KEY not set in .env")
         sys.exit(1)
-    # Set DP_NOISE_SCALE to 0.0 for best accuracy unless privacy is required
     if not os.getenv("DP_NOISE_SCALE"):
         os.environ["DP_NOISE_SCALE"] = "0.0"
-    # Each client should use preprocessed_data/client_{cid}
     start_client(args.cid, os.path.join(args.data_dir, f"client_{args.cid}"), server_url, api_key, round_num=args.round)

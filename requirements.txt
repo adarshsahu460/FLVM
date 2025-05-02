@@ -11,3 +11,6 @@ torchvision
 pillow
 python-dotenv
 tqdm
+kagglehub
+matplotlib
+pandas

@@ -6,6 +6,7 @@ from PIL import Image
 import logging
 from dotenv import load_dotenv
 import math
+import re
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -25,8 +26,13 @@ class AlzheimersDataset(Dataset):
             if file_name.lower().endswith('.jpg'):
                 file_path = os.path.join(data_dir, file_name)
                 try:
-                    label = int(file_name.split('_label_')[-1].replace('.jpg', ''))
-                    all_files.append((file_path, label))
+                    # Extract label from filenames ending with 'label{number}.jpg'
+                    match = re.search(r'label(\d+)\.jpg$', file_name)
+                    if match:
+                        label = int(match.group(1))
+                        all_files.append((file_path, label))
+                    else:
+                        raise ValueError('No label found in filename')
                 except (ValueError, IndexError) as e:
                     logger.warning(f"Skipping {file_name}: Invalid label format ({e})")
         # Partitioning logic
@@ -53,7 +59,7 @@ class AlzheimersDataset(Dataset):
             image = self.transform(image)
         return image, label
 
-def load_dataset(data_dir, batch_size=32, shuffle=True, num_workers=4, augment=False, partition=None, num_partitions=20):
+def load_dataset(data_dir, batch_size=32, shuffle=True, num_workers=4, augment=False):
     """
     Load dataset and return a DataLoader.
     Args:
@@ -62,8 +68,6 @@ def load_dataset(data_dir, batch_size=32, shuffle=True, num_workers=4, augment=F
         shuffle (bool): Whether to shuffle the dataset.
         num_workers (int): Number of workers for data loading.
         augment (bool): Whether to use data augmentation (for training).
-        partition (int): Which partition to use (1-based, for FL round).
-        num_partitions (int): Total number of partitions (default 20).
     Returns:
         DataLoader: PyTorch DataLoader for the dataset.
     """
@@ -87,7 +91,7 @@ def load_dataset(data_dir, batch_size=32, shuffle=True, num_workers=4, augment=F
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
-        dataset = AlzheimersDataset(data_dir, transform=transform, partition=partition, num_partitions=num_partitions)
+        dataset = AlzheimersDataset(data_dir, transform=transform)
         if len(dataset) == 0:
             raise ValueError(f"No valid images found in {data_dir}")
         data_loader = DataLoader(

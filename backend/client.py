@@ -15,11 +15,18 @@ import time
 from tqdm import tqdm
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("frontend_client.log", mode="a")
+    ]
+)
 logger = logging.getLogger(__name__)
 
 class AlzheimersClient:
-    def _init_(self, model, train_loader, cid, server_url, api_key):
+    def __init__(self, model, train_loader, cid, server_url, api_key):
         self.model = model
         self.train_loader = train_loader
         self.optimizer = optim.Adam(self.model.parameters(), lr=float(os.getenv("LEARNING_RATE", 0.0001)))
@@ -34,7 +41,7 @@ class AlzheimersClient:
     
     def load_global_model(self):
         """Download and load the global model, verifying version."""
-        logger.info(f"Client {self.cid}: Downloading global model")
+        print(f"Client {self.cid}: Downloading global model")
         headers = {"X-API-Key": self.api_key}
         retries = 5
         for attempt in range(retries):
@@ -70,7 +77,7 @@ class AlzheimersClient:
         
         total_batches_processed = 0
         # max_batches = int(os.getenv("MAX_BATCHES", 100))
-        num_epochs = int(os.getenv("NUM_EPOCHS", 20))
+        num_epochs = 2
         
         for epoch in range(num_epochs):
             # if total_batches_processed >= max_batches:
@@ -137,8 +144,8 @@ def start_client(cid, data_dir, server_url, api_key, round_num=1):
     logger.info(f"Starting client {cid} for round {round_num}")
     try:
         model = ViTForAlzheimers()
-        # Use entire dataset per round, batch size 8 for low memory
-        train_loader = load_dataset(data_dir, batch_size=8, augment=True, partition=None)
+        # Use per-round partitioning for the dataset, batch size 8 for low memory
+        train_loader = load_dataset(data_dir, batch_size=8, augment=True)
         client = AlzheimersClient(model, train_loader, cid, server_url, api_key)
         client.load_global_model()
         client.train()
@@ -147,7 +154,7 @@ def start_client(cid, data_dir, server_url, api_key, round_num=1):
         logger.error(f"Client {cid}: Error: {e}")
         sys.exit(1)
 
-if __name__ == "_main_":
+if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Federated Learning Client")
     parser.add_argument("--cid", type=int, default=0, help="Client ID")
@@ -162,4 +169,4 @@ if __name__ == "_main_":
         sys.exit(1)
     if not os.getenv("DP_NOISE_SCALE"):
         os.environ["DP_NOISE_SCALE"] = "0.0"
-    start_client(args.cid, os.path.join(args.data_dir, f"client_{args.cid}"), server_url, api_key, round_num=args.round)
+    start_client(args.cid, args.data_dir, server_url, api_key, round_num=args.round)

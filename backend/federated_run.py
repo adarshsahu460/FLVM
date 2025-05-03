@@ -3,7 +3,7 @@ import time
 import os
 import requests
 import sys
-import torch  # We’ll detect number of GPUs available
+import torch  # We'll detect number of GPUs available
 
 NUM_CLIENTS = 3
 NUM_ROUNDS = 2
@@ -19,10 +19,11 @@ def run_client(cid, round_num, assigned_gpu):
     env = os.environ.copy()
     # Assign client to a specific GPU (or let it share if GPUs < clients)
     env["CUDA_VISIBLE_DEVICES"] = str(assigned_gpu)
+    data_dir = f"preprocessed_data/client_{cid}"
     cmd = [
         sys.executable, "client.py",
         "--cid", str(cid),
-        "--data-dir", CLIENT_DATA_DIR,
+        "--data-dir", data_dir,
         "--round", str(round_num)
     ]
     return subprocess.Popen(cmd, env=env)

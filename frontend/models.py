@@ -4,17 +4,17 @@ import os
 
 class ViTForAlzheimers(torch.nn.Module):
     """Vision Transformer model for Alzheimer's classification."""
-    def _init_(self, num_labels=4):
-        super(ViTForAlzheimers, self)._init_()
+    def __init__(self, num_labels=4):
+        super(ViTForAlzheimers, self).__init__()
         hf_token = os.getenv("HF_TOKEN")
+        # IMPORTANT: This model name must match the backend/server
         self.vit = ViTModel.from_pretrained('google/vit-base-patch16-224', use_auth_token=hf_token)
         # Initially freeze all parameters
         for param in self.vit.parameters():
             param.requires_grad = False
-        # Unfreeze all encoder layers (12 total) for fine-tuning
-        if hasattr(self.vit, 'encoder') and hasattr(self.vit.encoder, 'layer'):
-            for param in self.vit.encoder.layer.parameters():
-                param.requires_grad = True
+        # Optionally, unfreeze some encoder layers for fine-tuning
+        # for param in self.vit.encoder.layer[-1].parameters():
+        #     param.requires_grad = True
         # Classifier head
         self.classifier = torch.nn.Sequential(
             torch.nn.Linear(self.vit.config.hidden_size, 512),
@@ -25,6 +25,9 @@ class ViTForAlzheimers(torch.nn.Module):
             torch.nn.Dropout(0.1),
             torch.nn.Linear(256, num_labels)
         )
+        # Unfreeze classifier head
+        for param in self.classifier.parameters():
+            param.requires_grad = True
     
     def forward(self, pixel_values):
         outputs = self.vit(pixel_values=pixel_values)

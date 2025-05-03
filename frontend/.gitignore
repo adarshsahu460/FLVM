@@ -1,0 +1,19 @@
+# Folders
+venv/
+preprocessed_data/
+__pycache__/
+data/
+node_modules/
+
+# Files
+*.h5
+
+# Other potential large files
+*.pt
+*.pth
+*.bin
+*.log 
+
+# Secrets
+# .env
+# kaggle.json

@@ -1,8 +1,9 @@
 # Folders
-venv2/
+venv/
 preprocessed_data/
 __pycache__/
 data/
+node_modules/
 
 # Files
 *.h5

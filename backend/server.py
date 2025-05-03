@@ -36,7 +36,7 @@ WEIGHTS_DIR = os.getenv("WEIGHTS_DIR", "client_weights")
 os.makedirs(WEIGHTS_DIR, exist_ok=True)
 
 # Global model configuration
-global_model = ViTForAlzheimers(num_labels=4)
+global_model = ViTForAlzheimers()
 GLOBAL_MODEL_PATH = os.getenv("GLOBAL_MODEL_PATH", "global_model.h5")
 MODEL_VERSION = "1.0"  # Increment after each aggregation
 # The test set is expected to be in preprocessed_data/test with labels in filenames as label{label}.jpg

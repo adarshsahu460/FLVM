@@ -7,7 +7,7 @@ from tqdm import tqdm
 # Define paths
 DATA_DIR = 'data'
 OUTPUT_DIR = 'preprocessed_data'
-CLIENTS = 5
+CLIENTS = 3
 TEST_SPLIT = 0.2
 
 # Map class names to numeric labels
@@ -37,13 +37,13 @@ for class_name, label in CLASS_MAP.items():
     # Distribute to test set with progress bar
     for img_path in tqdm(test_images, desc=f"Copying test images for '{class_name}'"):
         base = os.path.basename(img_path)
-        new_name = f"{os.path.splitext(base)[0]}_label_{label}.jpg"
+        new_name = f"{os.path.splitext(base)[0]}label{label}.jpg"
         shutil.copy(img_path, os.path.join(OUTPUT_DIR, 'test', new_name))
     # Distribute to clients with progress bar
     for idx, img_path in enumerate(tqdm(client_images, desc=f"Copying client images for '{class_name}'")):
         client_id = idx % CLIENTS
         base = os.path.basename(img_path)
-        new_name = f"{os.path.splitext(base)[0]}_label_{label}.jpg"
+        new_name = f"{os.path.splitext(base)[0]}label{label}.jpg"
         shutil.copy(img_path, os.path.join(OUTPUT_DIR, f'client_{client_id}', new_name))
         if (idx+1) % 100 == 0 or (idx+1) == len(client_images):
             print(f"  Client {client_id}: {idx+1} / {len(client_images)} images distributed.")

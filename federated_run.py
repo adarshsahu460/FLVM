@@ -2,25 +2,33 @@ import subprocess
 import time
 import os
 import requests
-import sys  # Ensure we use the venv Python
+import sys
+import torch  # We’ll detect number of GPUs available
 
-NUM_CLIENTS = 5
-NUM_ROUNDS = 20
+NUM_CLIENTS = 3
+NUM_ROUNDS = 2
 CLIENT_DATA_DIR = "preprocessed_data"
 SERVER_URL = "http://localhost:8080"
 API_KEY = os.getenv("API_KEY", "myflkey123")
 
-def run_client(cid, round_num):
+# Detect available GPUs
+NUM_GPUS = torch.cuda.device_count()
+print(f"Detected {NUM_GPUS} GPU(s)")
+
+def run_client(cid, round_num, assigned_gpu):
+    env = os.environ.copy()
+    # Assign client to a specific GPU (or let it share if GPUs < clients)
+    env["CUDA_VISIBLE_DEVICES"] = str(assigned_gpu)
     cmd = [
-        sys.executable, "client.py",  # Use the current Python interpreter
+        sys.executable, "client.py",
         "--cid", str(cid),
         "--data-dir", CLIENT_DATA_DIR,
         "--round", str(round_num)
     ]
-    return subprocess.Popen(cmd)
+    return subprocess.Popen(cmd, env=env)
 
 def aggregate():
-    subprocess.run([sys.executable, "aggregate.py"], check=True)  # Use the current Python interpreter
+    subprocess.run([sys.executable, "aggregate.py"], check=True)
 
 def validate():
     resp = requests.get(
@@ -33,10 +41,16 @@ for round_num in range(1, NUM_ROUNDS + 1):
     print(f"\n=== Federated Round {round_num} ===")
     procs = []
     for cid in range(NUM_CLIENTS):
-        procs.append(run_client(cid, round_num))
-        time.sleep(2)  # Add a 2-second delay between starting each client
+        # Round-robin GPU assignment
+        assigned_gpu = cid % NUM_GPUS if NUM_GPUS > 0 else -1
+        print(f"Launching Client {cid} on GPU {assigned_gpu}")
+        procs.append(run_client(cid, round_num, assigned_gpu))
+        time.sleep(1)  # Optional slight stagger
+
+    # Wait for all clients to finish
     for proc in procs:
         proc.wait()
+
     aggregate()
     validate()
     time.sleep(2)

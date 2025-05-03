@@ -4,8 +4,8 @@ import os
 
 class ViTForAlzheimers(torch.nn.Module):
     """Vision Transformer model for Alzheimer's classification."""
-    def __init__(self, num_labels=4):
-        super(ViTForAlzheimers, self).__init__()
+    def _init_(self, num_labels=4):
+        super(ViTForAlzheimers, self)._init_()
         hf_token = os.getenv("HF_TOKEN")
         self.vit = ViTModel.from_pretrained('google/vit-base-patch16-224', use_auth_token=hf_token)
         # Initially freeze all parameters

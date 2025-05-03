@@ -5,7 +5,9 @@ from collections import OrderedDict
 from models import ViTForAlzheimers
 import logging
 import os
+import multiprocessing as mp
 from multiprocessing import Pool
+mp.set_start_method('spawn', force=True)
 from functools import partial
 from dotenv import load_dotenv
 from tqdm import tqdm
@@ -34,7 +36,6 @@ def aggregate_weights():
     """Aggregate client weights using weighted FedAvg."""
     WEIGHTS_DIR = os.getenv("WEIGHTS_DIR", "client_weights")
     GLOBAL_MODEL_PATH = os.getenv("GLOBAL_MODEL_PATH", "global_model.h5")
-    model = ViTForAlzheimers(num_labels=4)
     client_weights = {}
     for f in os.listdir(WEIGHTS_DIR):
         if f.endswith('.h5'):
@@ -47,8 +48,14 @@ def aggregate_weights():
         logger.warning("No client weights found for aggregation")
         return
     logger.info(f"Found {len(weight_files)} client weights for aggregation")
-    with Pool() as pool:
-        results = list(tqdm(pool.imap(partial(process_weights, weights_dir=WEIGHTS_DIR), weight_files), total=len(weight_files), desc="Processing client weights"))
+    # with Pool() as pool:
+    #     results = list(tqdm(pool.imap(partial(process_weights, weights_dir=WEIGHTS_DIR), weight_files), total=len(weight_files), desc="Processing client weights"))
+    results = []
+    for weight_file in tqdm(weight_files, desc="Processing client weights"):
+        result = process_weights(weight_file, WEIGHTS_DIR)
+        results.append(result)
+
+    model = ViTForAlzheimers(num_labels=4)
     aggregated_state_dict = OrderedDict()
     total_samples = 0
     global_shapes = {k: v.shape for k, v in model.state_dict().items()}
@@ -122,6 +129,6 @@ def aggregate_weights():
     except Exception as e:
         logger.error(f"Error saving aggregated model: {e}")
 
-if __name__ == "__main__":
+if __name__ == "_main_":
     logger.info("Starting nightly aggregation...")
     aggregate_weights()

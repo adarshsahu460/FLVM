@@ -39,7 +39,7 @@ os.makedirs(WEIGHTS_DIR, exist_ok=True)
 global_model = ViTForAlzheimers(num_labels=4)
 GLOBAL_MODEL_PATH = os.getenv("GLOBAL_MODEL_PATH", "global_model.h5")
 MODEL_VERSION = "1.0"  # Increment after each aggregation
-# The test set is expected to be in preprocessed_data/test with labels in filenames as _label_{label}.jpg
+# The test set is expected to be in preprocessed_data/test with labels in filenames as label{label}.jpg
 VALIDATION_DATA_DIR = os.getenv("VALIDATION_DATA_DIR", "preprocessed_data/test")
 
 @app.post("/upload-weights/{client_id}")

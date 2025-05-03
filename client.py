@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 class AlzheimersClient:
-    def __init__(self, model, train_loader, cid, server_url, api_key):
+    def _init_(self, model, train_loader, cid, server_url, api_key):
         self.model = model
         self.train_loader = train_loader
         self.optimizer = optim.Adam(self.model.parameters(), lr=float(os.getenv("LEARNING_RATE", 0.0001)))
@@ -69,23 +69,23 @@ class AlzheimersClient:
         self.model.train()
         
         total_batches_processed = 0
-        max_batches = int(os.getenv("MAX_BATCHES", 100))
+        # max_batches = int(os.getenv("MAX_BATCHES", 100))
         num_epochs = int(os.getenv("NUM_EPOCHS", 20))
         
         for epoch in range(num_epochs):
-            if total_batches_processed >= max_batches:
-                logger.info(f"Client {self.cid}: Reached maximum of {max_batches} batches")
-                break
+            # if total_batches_processed >= max_batches:
+                # logger.info(f"Client {self.cid}: Reached maximum of {max_batches} batches")
+                # break
             
             logger.info(f"Client {self.cid}: Epoch {epoch + 1}/{num_epochs}")
             batch_count = 0
             for batch_idx, (images, labels) in enumerate(tqdm(self.train_loader, desc=f"Client {self.cid} Epoch {epoch+1}/{num_epochs}")):
-                if total_batches_processed >= max_batches:
-                    logger.info(f"Client {self.cid}: Reached maximum of {max_batches} batches in epoch {epoch + 1}")
-                    break
+                # if total_batches_processed >= max_batches:
+                #     logger.info(f"Client {self.cid}: Reached maximum of {max_batches} batches in epoch {epoch + 1}")
+                #     break
                 
                 batch_count += 1
-                total_batches_processed += 1
+                # total_batches_processed += 1
                 images, labels = images.to(self.device), labels.to(self.device)
                 self.optimizer.zero_grad()
                 
@@ -147,7 +147,7 @@ def start_client(cid, data_dir, server_url, api_key, round_num=1):
         logger.error(f"Client {cid}: Error: {e}")
         sys.exit(1)
 
-if __name__ == "__main__":
+if __name__ == "_main_":
     import argparse
     parser = argparse.ArgumentParser(description="Federated Learning Client")
     parser.add_argument("--cid", type=int, default=0, help="Client ID")

@@ -1,0 +1,144 @@
+uvicorn : 2025-04-22 00:14:58,191 - server - INFO - Server started and FastAPI app initialized.
+At line:1 char:1
++ uvicorn server:app --host 0.0.0.0 --port 8080 > server.log 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2025-04-22 00:1...pp initialized.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+D:\Projects\FLVM\venv\Lib\site-packages\transformers\modeling_utils.py:4056: FutureWarning: The `use_auth_token` argument 
+is deprecated and will be removed in v5 of Transformers. Please use `token` instead.
+  warnings.warn(
+Some weights of ViTModel were not initialized from the model checkpoint at facebook/deit-tiny-patch16-224 and are newly 
+initialized: ['pooler.dense.bias', 'pooler.dense.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+INFO:     Started server process [1780]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+2025-04-22 00:15:18,933 - server - INFO - Received get-global-model request
+2025-04-22 00:15:18,933 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62015 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:15:21,194 - server - INFO - Received get-global-model request
+2025-04-22 00:15:21,194 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62020 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:15:24,990 - server - INFO - Received get-global-model request
+2025-04-22 00:15:24,991 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62025 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:15:28,108 - server - INFO - Received get-global-model request
+2025-04-22 00:15:28,108 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62032 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:15:30,270 - server - INFO - Received get-global-model request
+2025-04-22 00:15:30,270 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62033 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:17:54,695 - server - INFO - Received upload-weights request from client 0 (dataset_size=692)
+2025-04-22 00:17:54,753 - server - INFO - Saved weights and dataset size 692 from client 0 to 
+client_weights\weights_0_20250422_001754.h5
+INFO:     127.0.0.1:62086 - "POST /upload-weights/0 HTTP/1.1" 200 OK
+2025-04-22 00:18:01,055 - server - INFO - Received upload-weights request from client 1 (dataset_size=692)
+2025-04-22 00:18:01,095 - server - INFO - Saved weights and dataset size 692 from client 1 to 
+client_weights\weights_1_20250422_001801.h5
+INFO:     127.0.0.1:62088 - "POST /upload-weights/1 HTTP/1.1" 200 OK
+2025-04-22 00:18:04,638 - server - INFO - Received upload-weights request from client 2 (dataset_size=692)
+2025-04-22 00:18:04,660 - server - INFO - Saved weights and dataset size 692 from client 2 to 
+client_weights\weights_2_20250422_001804.h5
+INFO:     127.0.0.1:62092 - "POST /upload-weights/2 HTTP/1.1" 200 OK
+2025-04-22 00:18:05,788 - server - INFO - Received upload-weights request from client 3 (dataset_size=692)
+2025-04-22 00:18:05,808 - server - INFO - Saved weights and dataset size 692 from client 3 to 
+client_weights\weights_3_20250422_001805.h5
+INFO:     127.0.0.1:62093 - "POST /upload-weights/3 HTTP/1.1" 200 OK
+2025-04-22 00:18:06,127 - server - INFO - Received upload-weights request from client 4 (dataset_size=692)
+2025-04-22 00:18:06,149 - server - INFO - Saved weights and dataset size 692 from client 4 to 
+client_weights\weights_4_20250422_001806.h5
+INFO:     127.0.0.1:62094 - "POST /upload-weights/4 HTTP/1.1" 200 OK
+2025-04-22 00:18:22,000 - server - INFO - Received validate-global-model request
+Some weights of ViTModel were not initialized from the model checkpoint at facebook/deit-tiny-patch16-224 and are newly 
+initialized: ['pooler.dense.bias', 'pooler.dense.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+2025-04-22 00:18:22,874 - utils - INFO - Found 17286 valid images in preprocessed_data/test
+2025-04-22 00:18:22,875 - utils - INFO - Loaded DataLoader from preprocessed_data/test with 17286 samples
+2025-04-22 00:22:10,469 - server - INFO - Validation Loss: 0.6683, Accuracy: 77.81%
+INFO:     127.0.0.1:62107 - "GET /validate-global-model HTTP/1.1" 200 OK
+2025-04-22 00:22:19,374 - server - INFO - Received get-global-model request
+2025-04-22 00:22:19,374 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62126 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:22:21,506 - server - INFO - Received get-global-model request
+2025-04-22 00:22:21,507 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62130 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:22:24,346 - server - INFO - Received get-global-model request
+2025-04-22 00:22:24,346 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62135 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:22:28,678 - server - INFO - Received get-global-model request
+2025-04-22 00:22:28,678 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62141 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:22:31,168 - server - INFO - Received get-global-model request
+2025-04-22 00:22:31,168 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62143 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:24:52,507 - server - INFO - Received upload-weights request from client 0 (dataset_size=692)
+2025-04-22 00:24:52,534 - server - INFO - Saved weights and dataset size 692 from client 0 to 
+client_weights\weights_0_20250422_002452.h5
+INFO:     127.0.0.1:62149 - "POST /upload-weights/0 HTTP/1.1" 200 OK
+2025-04-22 00:24:56,101 - server - INFO - Received upload-weights request from client 1 (dataset_size=692)
+2025-04-22 00:24:56,137 - server - INFO - Saved weights and dataset size 692 from client 1 to 
+client_weights\weights_1_20250422_002456.h5
+INFO:     127.0.0.1:62151 - "POST /upload-weights/1 HTTP/1.1" 200 OK
+2025-04-22 00:24:59,300 - server - INFO - Received upload-weights request from client 2 (dataset_size=692)
+2025-04-22 00:24:59,327 - server - INFO - Saved weights and dataset size 692 from client 2 to 
+client_weights\weights_2_20250422_002459.h5
+INFO:     127.0.0.1:62154 - "POST /upload-weights/2 HTTP/1.1" 200 OK
+2025-04-22 00:25:02,653 - server - INFO - Received upload-weights request from client 3 (dataset_size=692)
+2025-04-22 00:25:02,676 - server - INFO - Saved weights and dataset size 692 from client 3 to 
+client_weights\weights_3_20250422_002502.h5
+INFO:     127.0.0.1:62157 - "POST /upload-weights/3 HTTP/1.1" 200 OK
+2025-04-22 00:25:03,645 - server - INFO - Received upload-weights request from client 4 (dataset_size=692)
+2025-04-22 00:25:03,667 - server - INFO - Saved weights and dataset size 692 from client 4 to 
+client_weights\weights_4_20250422_002503.h5
+INFO:     127.0.0.1:62158 - "POST /upload-weights/4 HTTP/1.1" 200 OK
+2025-04-22 00:25:22,332 - server - INFO - Received validate-global-model request
+Some weights of ViTModel were not initialized from the model checkpoint at facebook/deit-tiny-patch16-224 and are newly 
+initialized: ['pooler.dense.bias', 'pooler.dense.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+2025-04-22 00:25:23,273 - utils - INFO - Found 17286 valid images in preprocessed_data/test
+2025-04-22 00:25:23,273 - utils - INFO - Loaded DataLoader from preprocessed_data/test with 17286 samples
+2025-04-22 00:29:10,857 - server - INFO - Validation Loss: 0.5710, Accuracy: 77.61%
+INFO:     127.0.0.1:62171 - "GET /validate-global-model HTTP/1.1" 200 OK
+2025-04-22 00:29:19,550 - server - INFO - Received get-global-model request
+2025-04-22 00:29:19,551 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62205 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:29:21,717 - server - INFO - Received get-global-model request
+2025-04-22 00:29:21,718 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62209 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:29:24,550 - server - INFO - Received get-global-model request
+2025-04-22 00:29:24,551 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62213 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:29:28,644 - server - INFO - Received get-global-model request
+2025-04-22 00:29:28,645 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62218 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:29:31,238 - server - INFO - Received get-global-model request
+2025-04-22 00:29:31,238 - server - INFO - Serving global model from global_model.h5
+INFO:     127.0.0.1:62221 - "GET /get-global-model HTTP/1.1" 200 OK
+2025-04-22 00:31:53,769 - server - INFO - Received upload-weights request from client 0 (dataset_size=692)
+2025-04-22 00:31:53,801 - server - INFO - Saved weights and dataset size 692 from client 0 to 
+client_weights\weights_0_20250422_003153.h5
+INFO:     127.0.0.1:62227 - "POST /upload-weights/0 HTTP/1.1" 200 OK
+2025-04-22 00:31:59,164 - server - INFO - Received upload-weights request from client 1 (dataset_size=692)
+2025-04-22 00:31:59,188 - server - INFO - Saved weights and dataset size 692 from client 1 to 
+client_weights\weights_1_20250422_003159.h5
+INFO:     127.0.0.1:62230 - "POST /upload-weights/1 HTTP/1.1" 200 OK
+2025-04-22 00:32:01,475 - server - INFO - Received upload-weights request from client 2 (dataset_size=692)
+2025-04-22 00:32:01,500 - server - INFO - Saved weights and dataset size 692 from client 2 to 
+client_weights\weights_2_20250422_003201.h5
+INFO:     127.0.0.1:62232 - "POST /upload-weights/2 HTTP/1.1" 200 OK
+2025-04-22 00:32:03,596 - server - INFO - Received upload-weights request from client 3 (dataset_size=692)
+2025-04-22 00:32:03,618 - server - INFO - Saved weights and dataset size 692 from client 3 to 
+client_weights\weights_3_20250422_003203.h5
+INFO:     127.0.0.1:62234 - "POST /upload-weights/3 HTTP/1.1" 200 OK
+2025-04-22 00:32:04,966 - server - INFO - Received upload-weights request from client 4 (dataset_size=692)
+2025-04-22 00:32:04,987 - server - INFO - Saved weights and dataset size 692 from client 4 to 
+client_weights\weights_4_20250422_003204.h5
+INFO:     127.0.0.1:62235 - "POST /upload-weights/4 HTTP/1.1" 200 OK
+2025-04-22 00:32:20,346 - server - INFO - Received validate-global-model request
+Some weights of ViTModel were not initialized from the model checkpoint at facebook/deit-tiny-patch16-224 and are newly 
+initialized: ['pooler.dense.bias', 'pooler.dense.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+2025-04-22 00:32:21,247 - utils - INFO - Found 17286 valid images in preprocessed_data/test
+2025-04-22 00:32:21,248 - utils - INFO - Loaded DataLoader from preprocessed_data/test with 17286 samples

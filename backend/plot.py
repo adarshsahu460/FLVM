@@ -1,60 +1,93 @@
 import re
 import matplotlib.pyplot as plt
+import numpy as np
+import ast
+import seaborn as sns
 
 log_file = "./server.log"
 
-# Patterns to extract relevant information
-val_pattern = re.compile(r"Validation Loss: ([\d\.]+), Accuracy: ([\d\.]+)%")
-client_pattern = re.compile(r"Received upload-weights request from client (\d+) \(dataset_size=(\d+)\)")
+# Patterns for metrics and confusion matrix
+val_pattern = re.compile(
+    r"Validation Loss: ([\d\.]+), Accuracy: ([\d\.]+)%"
+    r", F1: ([\d\.]+), Precision: ([\d\.]+), Recall: ([\d\.]+)"
+)
+cm_pattern = re.compile(r"Confusion Matrix: (\[.*\])")
 
-# Lists to store extracted data
-val_losses = []
-val_accuracies = []
-val_rounds = []
-
-client_sizes = {}  # {round: {client_id: size}}
+val_losses, val_accuracies, val_f1s, val_precisions, val_recalls, val_rounds = [], [], [], [], [], []
+confusion_matrices = []
 current_round = 0
 
 with open(log_file, "r") as f:
     for line in f:
-        # Validation metrics
         val_match = val_pattern.search(line)
         if val_match:
-            loss = float(val_match.group(1))
-            acc = float(val_match.group(2))
-            val_losses.append(loss)
-            val_accuracies.append(acc)
+            val_losses.append(float(val_match.group(1)))
+            val_accuracies.append(float(val_match.group(2)))
+            val_f1s.append(float(val_match.group(3)))
+            val_precisions.append(float(val_match.group(4)))
+            val_recalls.append(float(val_match.group(5)))
             val_rounds.append(current_round)
             current_round += 1
-        # Client dataset sizes (optional)
-        client_match = client_pattern.search(line)
-        if client_match:
-            client_id = int(client_match.group(1))
-            size = int(client_match.group(2))
-            if current_round not in client_sizes:
-                client_sizes[current_round] = {}
-            client_sizes[current_round][client_id] = size
+        cm_match = cm_pattern.search(line)
+        if cm_match:
+            cm = np.array(ast.literal_eval(cm_match.group(1)))
+            confusion_matrices.append(cm)
 
-# Plotting Validation Loss and Accuracy
-fig, ax1 = plt.subplots(figsize=(10, 6))
-
-color = 'tab:red'
-ax1.set_xlabel('Round')
-ax1.set_ylabel('Validation Loss', color=color)
-ax1.plot(val_rounds, val_losses, color=color, marker='o', label='Validation Loss')
-ax1.tick_params(axis='y', labelcolor=color)
-ax1.legend(loc='upper left')
-
-ax2 = ax1.twinx()
-color = 'tab:blue'
-ax2.set_ylabel('Validation Accuracy (%)', color=color)
-ax2.plot(val_rounds, val_accuracies, color=color, marker='x', label='Validation Accuracy')
-ax2.tick_params(axis='y', labelcolor=color)
-ax2.legend(loc='upper right')
-
-plt.title('Federated Learning: Validation Loss and Accuracy per Round')
+# Plotting each metric on a separate graph
+plt.figure(figsize=(8, 5))
+plt.plot(val_rounds, val_losses, marker='o', color='tab:red')
+plt.title('Validation Loss per Round')
+plt.xlabel('Round')
+plt.ylabel('Loss')
+plt.grid(True)
 plt.tight_layout()
 plt.show()
+
+plt.figure(figsize=(8, 5))
+plt.plot(val_rounds, val_accuracies, marker='x', color='tab:blue')
+plt.title('Validation Accuracy per Round')
+plt.xlabel('Round')
+plt.ylabel('Accuracy (%)')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(8, 5))
+plt.plot(val_rounds, val_f1s, marker='s', color='tab:green')
+plt.title('F1 Score per Round')
+plt.xlabel('Round')
+plt.ylabel('F1 Score')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(8, 5))
+plt.plot(val_rounds, val_precisions, marker='^', color='tab:orange')
+plt.title('Precision per Round')
+plt.xlabel('Round')
+plt.ylabel('Precision')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(8, 5))
+plt.plot(val_rounds, val_recalls, marker='v', color='tab:purple')
+plt.title('Recall per Round')
+plt.xlabel('Round')
+plt.ylabel('Recall')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# Plot confusion matrix for each round
+for i, cm in enumerate(confusion_matrices):
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.title(f'Confusion Matrix - Round {i}')
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    plt.tight_layout()
+    plt.show()
 
 # (Optional) Plot client dataset sizes per round
 # Uncomment below to plot client sizes

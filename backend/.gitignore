@@ -12,7 +12,7 @@ node_modules/
 *.pt
 *.pth
 *.bin
-*.log 
+# *.log 
 
 # Secrets
 # .env
